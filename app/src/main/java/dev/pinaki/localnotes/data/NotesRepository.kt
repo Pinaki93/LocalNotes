@@ -1,11 +1,12 @@
 package dev.pinaki.localnotes.data
 
 import java.util.Date
+import kotlinx.coroutines.flow.Flow
 
 class NotesRepository(database: NotesDatabase) {
     private val noteDao = database.noteDao()
 
-    suspend fun getAllNotes(): List<Note> = noteDao.getAll()
+    fun observeAllNotes(): Flow<List<Note>> = noteDao.observeAll()
 
     suspend fun getNote(id: Int): Note? = noteDao.getById(id)
 

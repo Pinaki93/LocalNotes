@@ -1,37 +1,17 @@
 package dev.pinaki.localnotes.feature.list
 
+import androidx.lifecycle.viewModelScope
 import dev.pinaki.localnotes.core.CoreUiState
 import dev.pinaki.localnotes.core.CoreViewModel
 import dev.pinaki.localnotes.core.ToolbarState
-import dev.pinaki.localnotes.data.Note
-import java.util.Date
+import dev.pinaki.localnotes.di.AppContainer
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 
-class NoteListViewModel : CoreViewModel<NoteListUiState, NoteListIntent>(
-    initialScreenState = NoteListUiState(
-        notes = listOf(
-            Note(
-                id = 1,
-                title = "Ship the first version",
-                content = "Small, useful, and offline-first. Polish can follow momentum.",
-                dateAdded = Date(1_788_537_600_000),
-                dateModified = Date(1_788_537_600_000),
-            ),
-            Note(
-                id = 2,
-                title = "Weekend reading",
-                content = "The Design of Everyday Things — chapter four.",
-                dateAdded = Date(1_788_451_200_000),
-                dateModified = Date(1_788_451_200_000),
-            ),
-            Note(
-                id = 3,
-                title = "Grocery list",
-                content = "Coffee, oat milk, tomatoes, basil, and sourdough.",
-                dateAdded = Date(1_788_364_800_000),
-                dateModified = Date(1_788_364_800_000),
-            ),
-        ),
-    ),
+class NoteListViewModel(
+    appContainer: AppContainer = AppContainer.getInstance(),
+) : CoreViewModel<NoteListUiState, NoteListIntent>(
+    initialScreenState = NoteListUiState(),
     initialCommonState = CoreUiState(
         toolbarState = ToolbarState(
             title = "Local Notes",
@@ -39,5 +19,15 @@ class NoteListViewModel : CoreViewModel<NoteListUiState, NoteListIntent>(
         ),
     ),
 ) {
+    private val notesRepository = appContainer.notesRepository()
+
+    init {
+        viewModelScope.launch {
+            notesRepository.observeAllNotes().collectLatest { notes ->
+                updateScreenState { it.copy(notes = notes) }
+            }
+        }
+    }
+
     override fun onIntent(intent: NoteListIntent) = Unit
 }

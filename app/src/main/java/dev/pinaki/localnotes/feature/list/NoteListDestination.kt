@@ -1,5 +1,6 @@
 package dev.pinaki.localnotes.feature.list
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -35,6 +36,7 @@ fun NoteListDestination(
         NoteListScreen(
             state = state,
             contentPadding = padding,
+            onNoteClick = { viewModel.onIntent(NoteListIntent.EditNote(it)) },
         )
     }
 }
@@ -44,6 +46,7 @@ fun NoteListScreen(
     state: NoteListUiState,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(),
+    onNoteClick: (Int) -> Unit = {},
 ) {
     if (state.notes.isEmpty()) {
         EmptyNotesView(
@@ -74,7 +77,7 @@ fun NoteListScreen(
         }
 
         items(state.notes, key = Note::id) { note ->
-            NoteCard(note)
+            NoteCard(note = note, onClick = { onNoteClick(note.id) })
         }
     }
 }
@@ -102,9 +105,11 @@ private fun EmptyNotesView(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun NoteCard(note: Note) {
+private fun NoteCard(note: Note, onClick: () -> Unit) {
     NeoSurface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
         color = MaterialTheme.colorScheme.surface,
     ) {
         Column(

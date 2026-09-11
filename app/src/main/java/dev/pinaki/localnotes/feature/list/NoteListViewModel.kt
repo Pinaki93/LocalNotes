@@ -5,13 +5,13 @@ import dev.pinaki.localnotes.core.CoreUiState
 import dev.pinaki.localnotes.core.CoreViewModel
 import dev.pinaki.localnotes.core.ToolbarState
 import dev.pinaki.localnotes.core.ToolbarAction
-import dev.pinaki.localnotes.core.SnackbarState
 import dev.pinaki.localnotes.di.AppContainer
+import dev.pinaki.localnotes.feature.addedit.AddEditDestination
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 class NoteListViewModel(
-    appContainer: AppContainer = AppContainer.getInstance(),
+    private val appContainer: AppContainer = AppContainer.getInstance(),
 ) : CoreViewModel<NoteListUiState, NoteListIntent>(
     initialScreenState = NoteListUiState(),
     initialCommonState = CoreUiState(
@@ -38,17 +38,20 @@ class NoteListViewModel(
         }
     }
 
-    override fun onIntent(intent: NoteListIntent) = Unit
+    override fun onIntent(intent: NoteListIntent) {
+        when (intent) {
+            is NoteListIntent.EditNote -> navigateToEditor(intent.noteId)
+        }
+    }
 
     override fun onToolbarActionClicked(actionId: String) {
         when (actionId) {
-            TOOLBAR_ACTION_ADD_NOTE -> showSnackbar(
-                SnackbarState(
-                    id = "add-note",
-                    message = "Add note clicked",
-                )
-            )
+            TOOLBAR_ACTION_ADD_NOTE -> navigateToEditor()
         }
+    }
+
+    private fun navigateToEditor(noteId: Int = 0) {
+        appContainer.navigator.navigateAsync(AddEditDestination.route(noteId))
     }
 
     companion object {

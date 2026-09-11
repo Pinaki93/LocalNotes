@@ -8,4 +8,6 @@ data class NoteListUiState(
     val notes: List<Note> = emptyList(),
 )
 
-sealed interface NoteListIntent
+sealed interface NoteListIntent {
+    data class EditNote(val noteId: Int) : NoteListIntent
+}

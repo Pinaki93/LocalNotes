@@ -103,6 +103,9 @@ fun <S, I> CoreScaffold(
     CoreScaffold(
         modifier = modifier,
         state = state.value.commonState,
+        onToolbarNavigationClick = {
+            viewModel.onCommonIntent(CommonIntent.OnToolbarBackPressed)
+        },
         onToolbarActionClick = { id ->
             viewModel.onCommonIntent(CommonIntent.OnToolbarActionClick(id))
         },
@@ -136,6 +139,7 @@ fun <S, I> CoreScaffold(
 fun CoreScaffold(
     state: CoreUiState,
     modifier: Modifier = Modifier,
+    onToolbarNavigationClick: (() -> Unit)? = null,
     onToolbarActionClick: (actionId: String) -> Unit = {},
     onAlertPositiveClick: (dialogId: String) -> Unit = {},
     onAlertNegativeClick: (dialogId: String) -> Unit = {},
@@ -193,7 +197,10 @@ fun CoreScaffold(
                     },
                     navigationIcon = {
                         if (toolbar.showNavigationIcon) {
-                            NeoIconButton(onClick = toolbar.onNavigationClick) {
+                            NeoIconButton(
+                                onClick = onToolbarNavigationClick ?: toolbar.onNavigationClick,
+                                transparent = true,
+                            ) {
                                 Text(
                                     text = "[X]",
                                     style = MaterialTheme.typography.titleLarge
@@ -322,6 +329,7 @@ private fun NeoSnackbar(data: SnackbarData) {
 @Composable
 private fun NeoIconButton(
     onClick: () -> Unit,
+    transparent: Boolean = false,
     content: @Composable () -> Unit
 ) {
     IconButton(
@@ -329,8 +337,11 @@ private fun NeoIconButton(
         modifier = Modifier
             .padding(horizontal = 4.dp)
             .size(40.dp)
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(3.dp))
-            .border(2.dp, Ink, RoundedCornerShape(3.dp))
+            .then(
+                if (transparent) Modifier else Modifier
+                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(3.dp))
+                    .border(2.dp, Ink, RoundedCornerShape(3.dp))
+            )
     ) {
         content()
     }

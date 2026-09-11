@@ -24,4 +24,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "LocalNotes"
 include(":app")
- 
+include(":server")

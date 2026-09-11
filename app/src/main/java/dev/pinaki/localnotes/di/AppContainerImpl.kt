@@ -3,6 +3,8 @@ package dev.pinaki.localnotes.di
 import android.content.Context
 import dev.pinaki.localnotes.data.NotesDatabase
 import dev.pinaki.localnotes.data.NotesRepository
+import dev.pinaki.localnotes.navigation.Navigator
+import dev.pinaki.localnotes.navigation.NavigatorImpl
 
 internal object AppContainerImpl : AppContainer {
     @Volatile
@@ -26,4 +28,8 @@ internal object AppContainerImpl : AppContainer {
     }
 
     override fun notesRepository(): NotesRepository = NotesRepository(database)
+
+    override val navigator: Navigator by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+        NavigatorImpl()
+    }
 }

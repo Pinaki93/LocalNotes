@@ -1,12 +1,10 @@
-package dev.pinaki.herdly.core
+package dev.pinaki.localnotes.core
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 
 // Common user actions generated from the CommonScaffold
 sealed interface CommonIntent {

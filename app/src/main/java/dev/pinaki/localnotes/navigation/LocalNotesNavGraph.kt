@@ -4,9 +4,9 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import dev.pinaki.localnotes.ui.HelloWorldScreen
+import dev.pinaki.localnotes.feature.list.NoteListDestination
 
-private const val HELLO_WORLD_ROUTE = "hello_world"
+private const val NOTE_LIST_ROUTE = "notes"
 
 @Composable
 fun LocalNotesNavGraph() {
@@ -16,10 +16,10 @@ fun LocalNotesNavGraph() {
 
     NavHost(
         navController = navController,
-        startDestination = HELLO_WORLD_ROUTE,
+        startDestination = NOTE_LIST_ROUTE,
     ) {
-        composable(HELLO_WORLD_ROUTE) {
-            HelloWorldScreen()
+        composable(NOTE_LIST_ROUTE) {
+            NoteListDestination()
         }
     }
 }

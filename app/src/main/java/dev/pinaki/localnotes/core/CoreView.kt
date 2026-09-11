@@ -1,4 +1,4 @@
-package dev.pinaki.herdly.core
+package dev.pinaki.localnotes.core
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border

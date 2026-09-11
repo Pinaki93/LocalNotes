@@ -1,6 +1,11 @@
 plugins {
     `java-library`
+    application
     alias(libs.plugins.kotlin.jvm)
+}
+
+application {
+    mainClass = "dev.pinaki.localnotes.server.StaticFileServer"
 }
 
 java {

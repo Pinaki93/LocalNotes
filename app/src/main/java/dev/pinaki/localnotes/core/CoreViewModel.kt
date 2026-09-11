@@ -9,9 +9,12 @@ import kotlinx.coroutines.flow.update
 // Common user actions generated from the CommonScaffold
 sealed interface CommonIntent {
     data object OnToolbarBackPressed : CommonIntent
+    data class OnToolbarActionClick(val actionId: String) : CommonIntent
     data class OnAlertPositiveClick(val dialogId: String) : CommonIntent
     data class OnAlertNegativeClick(val dialogId: String) : CommonIntent
     data class OnAlertDismiss(val dialogId: String) : CommonIntent
+    data class OnSnackbarActionClick(val snackbarId: String) : CommonIntent
+    data class OnSnackbarDismiss(val snackbarId: String) : CommonIntent
 }
 
 // Wrapper combining Screen-specific State with the Scaffold's Common State
@@ -44,9 +47,12 @@ abstract class CoreViewModel<S, I>(
     fun onCommonIntent(intent: CommonIntent) {
         when (intent) {
             is CommonIntent.OnToolbarBackPressed -> onBackPress()
+            is CommonIntent.OnToolbarActionClick -> onToolbarActionClicked(intent.actionId)
             is CommonIntent.OnAlertPositiveClick -> onPositiveButtonClicked(intent.dialogId)
             is CommonIntent.OnAlertNegativeClick -> onNegativeButtonClicked(intent.dialogId)
             is CommonIntent.OnAlertDismiss -> onAlertDialogDismissed(intent.dialogId)
+            is CommonIntent.OnSnackbarActionClick -> onSnackbarActionClicked(intent.snackbarId)
+            is CommonIntent.OnSnackbarDismiss -> onSnackbarDismissed(intent.snackbarId)
         }
     }
 
@@ -55,6 +61,8 @@ abstract class CoreViewModel<S, I>(
     // -------------------------------------------------------------
 
     open fun onBackPress() {}
+
+    open fun onToolbarActionClicked(actionId: String) {}
 
     open fun onPositiveButtonClicked(dialogId: String) {
         hideAlertDialog()
@@ -66,6 +74,14 @@ abstract class CoreViewModel<S, I>(
 
     open fun onAlertDialogDismissed(dialogId: String) {
         hideAlertDialog()
+    }
+
+    open fun onSnackbarActionClicked(snackbarId: String) {
+        hideSnackbar()
+    }
+
+    open fun onSnackbarDismissed(snackbarId: String) {
+        hideSnackbar()
     }
 
     // -------------------------------------------------------------
@@ -98,6 +114,14 @@ abstract class CoreViewModel<S, I>(
 
     fun hideAlertDialog() {
         updateCommonState { it.copy(alertDialogState = null) }
+    }
+
+    fun showSnackbar(snackbarState: SnackbarState) {
+        updateCommonState { it.copy(snackbarState = snackbarState) }
+    }
+
+    fun hideSnackbar() {
+        updateCommonState { it.copy(snackbarState = null) }
     }
 
     fun updateToolbar(toolbarState: ToolbarState?) {

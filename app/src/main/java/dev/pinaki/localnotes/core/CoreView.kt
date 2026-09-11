@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -19,12 +20,19 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarData
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -41,9 +49,10 @@ import dev.pinaki.localnotes.ui.theme.Ink
 // 1. Toolbar State
 @Immutable
 data class ToolbarAction(
-    val icon: ImageVector,
+    val id: String,
+    val icon: ImageVector? = null,
+    val text: String? = null,
     val contentDescription: String?,
-    val onClick: () -> Unit
 )
 
 @Immutable
@@ -65,12 +74,23 @@ data class AlertDialogState(
     val isDismissible: Boolean = true
 )
 
-// 3. Consolidated UI State
+// 3. Snackbar State
+@Immutable
+data class SnackbarState(
+    val id: String,
+    val message: String,
+    val actionLabel: String? = null,
+    val withDismissAction: Boolean = false,
+    val duration: SnackbarDuration = SnackbarDuration.Short,
+)
+
+// 4. Consolidated UI State
 @Immutable
 data class CoreUiState(
     val toolbarState: ToolbarState? = null, // null hides the toolbar
     val isLoading: Boolean = false,
-    val alertDialogState: AlertDialogState? = null
+    val alertDialogState: AlertDialogState? = null,
+    val snackbarState: SnackbarState? = null,
 )
 
 @Composable
@@ -83,6 +103,9 @@ fun <S, I> CoreScaffold(
     CoreScaffold(
         modifier = modifier,
         state = state.value.commonState,
+        onToolbarActionClick = { id ->
+            viewModel.onCommonIntent(CommonIntent.OnToolbarActionClick(id))
+        },
         onAlertPositiveClick = { id ->
             viewModel.onCommonIntent(CommonIntent.OnAlertPositiveClick(id))
         },
@@ -91,6 +114,12 @@ fun <S, I> CoreScaffold(
         },
         onAlertDismiss = { id ->
             viewModel.onCommonIntent(CommonIntent.OnAlertDismiss(id))
+        },
+        onSnackbarActionClick = { id ->
+            viewModel.onCommonIntent(CommonIntent.OnSnackbarActionClick(id))
+        },
+        onSnackbarDismiss = { id ->
+            viewModel.onCommonIntent(CommonIntent.OnSnackbarDismiss(id))
         },
         content = { paddingValues ->
             content(
@@ -107,14 +136,39 @@ fun <S, I> CoreScaffold(
 fun CoreScaffold(
     state: CoreUiState,
     modifier: Modifier = Modifier,
+    onToolbarActionClick: (actionId: String) -> Unit = {},
     onAlertPositiveClick: (dialogId: String) -> Unit = {},
     onAlertNegativeClick: (dialogId: String) -> Unit = {},
     onAlertDismiss: (dialogId: String) -> Unit = {},
+    onSnackbarActionClick: (snackbarId: String) -> Unit = {},
+    onSnackbarDismiss: (snackbarId: String) -> Unit = {},
     content: @Composable (PaddingValues) -> Unit
 ) {
+    val snackbarHostState = remember { SnackbarHostState() }
+    val snackbar = state.snackbarState
+
+    LaunchedEffect(snackbar) {
+        snackbar ?: return@LaunchedEffect
+        val result = snackbarHostState.showSnackbar(
+            message = snackbar.message,
+            actionLabel = snackbar.actionLabel,
+            withDismissAction = snackbar.withDismissAction,
+            duration = snackbar.duration,
+        )
+        when (result) {
+            SnackbarResult.ActionPerformed -> onSnackbarActionClick(snackbar.id)
+            SnackbarResult.Dismissed -> onSnackbarDismiss(snackbar.id)
+        }
+    }
+
     Scaffold(
         modifier = modifier,
         containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = {
+            SnackbarHost(snackbarHostState) { data ->
+                NeoSnackbar(data)
+            }
+        },
         topBar = {
             state.toolbarState?.let { toolbar ->
                 TopAppBar(
@@ -148,12 +202,19 @@ fun CoreScaffold(
                         }
                     },
                     actions = {
-                        toolbar.actions.forEach { action ->
-                            NeoIconButton(onClick = action.onClick) {
-                                Icon(
-                                    imageVector = action.icon,
-                                    contentDescription = action.contentDescription
-                                )
+                        Row(modifier = Modifier.padding(end = 8.dp)) {
+                            toolbar.actions.forEach { action ->
+                                NeoIconButton(onClick = { onToolbarActionClick(action.id) }) {
+                                    action.icon?.let { icon ->
+                                        Icon(
+                                            imageVector = icon,
+                                            contentDescription = action.contentDescription
+                                        )
+                                    } ?: Text(
+                                        text = action.text.orEmpty(),
+                                        style = MaterialTheme.typography.titleLarge,
+                                    )
+                                }
                             }
                         }
                     }
@@ -213,6 +274,46 @@ fun CoreScaffold(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NeoSnackbar(data: SnackbarData) {
+    NeoSurface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        color = AcidYellow,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = data.visuals.message,
+                modifier = Modifier.weight(1f),
+                color = Ink,
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            data.visuals.actionLabel?.let { label ->
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    text = "[$label]".uppercase(),
+                    modifier = Modifier.clickable(onClick = data::performAction),
+                    color = Ink,
+                    style = MaterialTheme.typography.labelLarge,
+                )
+            }
+            if (data.visuals.withDismissAction) {
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    text = "[X]",
+                    modifier = Modifier.clickable(onClick = data::dismiss),
+                    color = Ink,
+                    style = MaterialTheme.typography.labelLarge,
+                )
             }
         }
     }

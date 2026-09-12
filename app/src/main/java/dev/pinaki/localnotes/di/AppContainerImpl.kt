@@ -3,6 +3,7 @@ package dev.pinaki.localnotes.di
 import android.content.Context
 import dev.pinaki.localnotes.data.NotesDatabase
 import dev.pinaki.localnotes.data.NotesRepository
+import dev.pinaki.localnotes.data.ServerStateRepository
 import dev.pinaki.localnotes.navigation.Navigator
 import dev.pinaki.localnotes.navigation.NavigatorImpl
 import dev.pinaki.localnotes.server.NotesController
@@ -47,5 +48,9 @@ internal object AppContainerImpl : AppContainer {
             restControllers = listOf(NotesController(this)),
             htmlCrudControllers = listOf(NotesHtmlController()),
         )
+    }
+
+    override val serverStateRepository: ServerStateRepository by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+        ServerStateRepository(checkNotNull(applicationContext))
     }
 }

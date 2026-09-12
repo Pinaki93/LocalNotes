@@ -5,7 +5,6 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
-import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
@@ -21,7 +20,9 @@ import java.util.concurrent.Executors
 /** Owns the HTTP server independently of activities and keeps it foreground-visible. */
 class NotesServerService : Service() {
     private val executor = Executors.newSingleThreadExecutor()
-    private val notesServer by lazy { AppContainer.getInstance().notesServer }
+    private val appContainer by lazy { AppContainer.getInstance() }
+    private val notesServer by lazy { appContainer.notesServer }
+    private val serverStateRepository by lazy { appContainer.serverStateRepository }
 
     override fun onCreate() {
         super.onCreate()
@@ -105,8 +106,7 @@ class NotesServerService : Service() {
     }
 
     private fun setEnabled(enabled: Boolean) {
-        getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
-            .edit().putBoolean(KEY_ENABLED, enabled).apply()
+        serverStateRepository.setEnabled(enabled)
     }
 
     companion object {
@@ -115,11 +115,5 @@ class NotesServerService : Service() {
         private const val TAG = "NotesServerService"
         private const val CHANNEL_ID = "local_notes_server"
         private const val NOTIFICATION_ID = 8080
-        private const val PREFERENCES = "server_state"
-        private const val KEY_ENABLED = "enabled"
-
-        fun wasEnabled(context: Context): Boolean =
-            context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
-                .getBoolean(KEY_ENABLED, false)
     }
 }

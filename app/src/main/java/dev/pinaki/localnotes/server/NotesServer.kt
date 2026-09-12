@@ -1,11 +1,15 @@
 package dev.pinaki.localnotes.server
 
+import android.content.Context
+import android.content.Intent
 import android.util.Log
+import androidx.core.content.ContextCompat
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 class NotesServer(
+    private val context: Context,
     private val serverFactory: () -> Server,
     private val restControllers: List<RestController>,
     private val htmlCrudControllers: List<HtmlCrudController>,
@@ -16,8 +20,23 @@ class NotesServer(
     private val mutableAddresses = MutableStateFlow<List<String>>(emptyList())
     val addresses: StateFlow<List<String>> = mutableAddresses.asStateFlow()
 
+    fun requestStart(): Result<Unit> = runCatching {
+        ContextCompat.startForegroundService(
+            context,
+            Intent(context, NotesServerService::class.java)
+                .setAction(NotesServerService.ACTION_START),
+        )
+    }.map { }
+
+    fun requestStop() {
+        context.startService(
+            Intent(context, NotesServerService::class.java)
+                .setAction(NotesServerService.ACTION_STOP),
+        )
+    }
+
     @Synchronized
-    fun start(): Result<Unit> {
+    internal fun start(): Result<Unit> {
         if (server != null) return Result.success(Unit)
         return runCatching {
             val newServer = serverFactory()
@@ -44,7 +63,7 @@ class NotesServer(
     }
 
     @Synchronized
-    fun stop() {
+    internal fun stop() {
         server?.close()
         server = null
         mutableIsRunning.value = false

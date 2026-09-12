@@ -1,4 +1,8 @@
 <resources>
     <string name="app_name">LocalNotes</string>
     <string name="hello_world">Hello World</string>
+    <string name="server_notification_channel">Local notes server</string>
+    <string name="server_notification_title">Local Notes server is running</string>
+    <string name="server_notification_starting">Starting on the local network…</string>
+    <string name="server_notification_stop">Stop</string>
 </resources>

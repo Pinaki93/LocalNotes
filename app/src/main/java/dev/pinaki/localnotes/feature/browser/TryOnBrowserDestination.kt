@@ -1,5 +1,10 @@
 package dev.pinaki.localnotes.feature.browser
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -18,12 +23,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.core.content.ContextCompat
 import dev.pinaki.localnotes.core.CoreScaffold
 import dev.pinaki.localnotes.ui.components.NeoSurface
 import dev.pinaki.localnotes.ui.components.NeoTag
@@ -35,11 +42,34 @@ import dev.pinaki.localnotes.ui.theme.Mint
 
 @Composable
 fun TryOnBrowserDestination(viewModel: TryOnBrowserViewModel = viewModel()) {
+    val context = LocalContext.current
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        viewModel.onIntent(
+            if (granted) TryOnBrowserIntent.ToggleServer
+            else TryOnBrowserIntent.NotificationPermissionDenied,
+        )
+    }
+
     CoreScaffold(viewModel = viewModel) { padding, state, onIntent ->
         TryOnBrowser(
             state = state,
             contentPadding = padding,
-            onToggle = { onIntent(TryOnBrowserIntent.ToggleServer) },
+            onToggle = {
+                val needsNotificationPermission =
+                    !state.isStarted &&
+                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                        ContextCompat.checkSelfPermission(
+                            context,
+                            Manifest.permission.POST_NOTIFICATIONS,
+                        ) != PackageManager.PERMISSION_GRANTED
+                if (needsNotificationPermission) {
+                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                } else {
+                    onIntent(TryOnBrowserIntent.ToggleServer)
+                }
+            },
         )
     }
 }

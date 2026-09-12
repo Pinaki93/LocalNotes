@@ -42,6 +42,7 @@ internal object AppContainerImpl : AppContainer {
 
     override val notesServer: NotesServer by lazy {
         NotesServer(
+            context = checkNotNull(applicationContext),
             serverFactory = ::Server,
             restControllers = listOf(NotesController(this)),
             htmlCrudControllers = listOf(NotesHtmlController()),

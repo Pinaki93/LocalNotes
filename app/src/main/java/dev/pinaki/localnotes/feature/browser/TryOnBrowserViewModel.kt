@@ -17,6 +17,7 @@ data class TryOnBrowserUiState(
 
 sealed interface TryOnBrowserIntent {
     data object ToggleServer : TryOnBrowserIntent
+    data object NotificationPermissionDenied : TryOnBrowserIntent
 }
 
 class TryOnBrowserViewModel(
@@ -43,6 +44,12 @@ class TryOnBrowserViewModel(
     override fun onIntent(intent: TryOnBrowserIntent) {
         when (intent) {
             TryOnBrowserIntent.ToggleServer -> toggleServer()
+            TryOnBrowserIntent.NotificationPermissionDenied -> showSnackbar(
+                SnackbarState(
+                    "notification-permission-denied",
+                    "Notification permission is required to show the running server",
+                ),
+            )
         }
     }
 
@@ -51,9 +58,9 @@ class TryOnBrowserViewModel(
     private fun toggleServer() {
         viewModelScope.launch(Dispatchers.IO) {
             if (notesServer.isRunning.value) {
-                notesServer.stop()
+                notesServer.requestStop()
             } else {
-                notesServer.start().onFailure {
+                notesServer.requestStart().onFailure {
                     showSnackbar(SnackbarState("server-start-failed", "Unable to start web browsing"))
                 }
             }

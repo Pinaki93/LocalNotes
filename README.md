@@ -1,8 +1,8 @@
 # LocalNotes
 
-LocalNotes is an offline-first Android notes app with an optional web interface for devices on the same local network. Notes live in a Room database on the Android device and can be created and edited from the Jetpack Compose app or, while the built-in server is running, from a browser.
-
 <img src="artwork/local-notes-icon-source.png" alt="LocalNotes app icon" width="160">
+
+LocalNotes is an offline-first Android notes app with an optional web interface for devices on the same local network. Notes live in a Room database on the Android device and can be created and edited from the Jetpack Compose app or, while the built-in server is running, from a browser.
 
 > [!WARNING]
 > This is a pet project of mine to test out server capabilities using a Native Android App. I am most likely not going to upload it to any app store or may not maintain this. 
@@ -71,36 +71,6 @@ If another application already uses port 8080, the server cannot start. Local fi
 
 The browser UI and REST API are served from the same origin. The API accepts and returns UTF-8 JSON.
 
-| Method | Path | Purpose | Successful response |
-| --- | --- | --- | --- |
-| `GET` | `/api/notes` | List all notes | `200 OK` with a JSON array |
-| `GET` | `/api/notes/{id}` | Get one note | `200 OK` with a note |
-| `POST` | `/api/notes` | Create a note | `201 Created` with the note and a `Location` header |
-| `PUT` | `/api/notes/{id}` | Replace a note's title and content | `200 OK` with the updated note |
-| `DELETE` | `/api/notes/{id}` | Delete a note | `204 No Content` |
-
-Create and update requests use this shape:
-
-```json
-{
-  "title": "Shopping list",
-  "content": "Coffee\nBread"
-}
-```
-
-A note response has this shape:
-
-```json
-{
-  "id": 1,
-  "title": "Shopping list",
-  "content": "Coffee\nBread",
-  "dateModified": 1789209000000
-}
-```
-
-`dateModified` is Unix time in milliseconds. Invalid JSON returns `400 Bad Request`; an invalid or missing note ID returns `404 Not Found`; and unsupported operations return `405 Method Not Allowed`.
-
 Example requests, with the phone address adjusted for your network:
 
 ```shell
@@ -121,61 +91,7 @@ curl -X DELETE "$LOCAL_NOTES_URL/api/notes/1"
 
 ## Architecture
 
-The project has two Gradle modules:
-
-| Module | Responsibility |
-| --- | --- |
-| `app` | Android UI, Room persistence, navigation, dependency container, note controllers, browser pages, and foreground-service lifecycle |
-| `server` | Reusable JVM HTTP server plus REST and HTML controller contracts |
-
-The main data flow is:
-
-```text
-Compose UI ───────────────┐
-                         ├─> NotesRepository ─> Room ─> on-device SQLite database
-Browser ─> HTTP server ─> NotesController ─────┘
-```
-
-Important components include:
-
-- `NotesRepository`: the note CRUD boundary over Room's `NoteDao`.
-- `ServerStateRepository`: stores whether the user left the local server enabled.
-- `AppContainer`: constructs and exposes application-scoped dependencies.
-- `NotesServer`: connects Android lifecycle commands to the reusable server.
-- `NotesServerService`: owns the running server and foreground notification.
-- `ServerBootReceiver`: restores an enabled server after boot.
-- `Server`: parses HTTP requests, resolves controller routes, and sends responses.
-- `NotesController`: maps `/api/notes` requests to repository operations.
-- `NotesHtmlController`: maps browser routes to packaged HTML resources.
-
-### Browser routes
-
-| Path | Page |
-| --- | --- |
-| `/` or `/notes` | Note list and delete actions |
-| `/notes/create` | Create form |
-| `/notes/update?id={id}` | Edit form |
-
-The pages are static resources under `app/src/main/resources/public/`. They call the REST API with the browser Fetch API and require no separate web build step.
-
-## Project structure
-
-```text
-LocalNotes/
-├── app/
-│   ├── schemas/                    Room schema exports
-│   └── src/main/
-│       ├── java/.../data/          Entities, DAO, database, repositories
-│       ├── java/.../di/            Application dependency container
-│       ├── java/.../feature/       Compose screens and view models
-│       ├── java/.../navigation/    Navigation graph and commands
-│       ├── java/.../server/        Android server integration/controllers
-│       └── resources/public/       Browser UI
-├── server/
-│   └── src/main/kotlin/.../server/ HTTP server and controller interfaces
-├── artwork/                        Source artwork
-└── gradle/                         Version catalog and wrapper configuration
-```
+This uses MVVM architecture with a service locator pattern. For the server, it uses MVC.
 
 ## Development
 

@@ -14,7 +14,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.runBlocking
 
-/** Serves static resources and registered REST controllers. */
+/** Serves registered REST and HTML CRUD controllers. */
 class Server(port: Int = DEFAULT_PORT) : AutoCloseable {
     private val serverSocket = ServerSocket().apply {
         reuseAddress = true
@@ -23,6 +23,7 @@ class Server(port: Int = DEFAULT_PORT) : AutoCloseable {
     private val executor = Executors.newCachedThreadPool()
     private val running = AtomicBoolean(false)
     private val controllers = CopyOnWriteArrayList<RestController>()
+    private val htmlControllers = CopyOnWriteArrayList<HtmlCrudController>()
 
     fun registerController(controller: RestController): Server = apply {
         require(!running.get()) { "Controllers must be registered before the server starts" }
@@ -31,6 +32,15 @@ class Server(port: Int = DEFAULT_PORT) : AutoCloseable {
             "A controller is already registered for $path"
         }
         controllers += controller
+    }
+
+    fun registerController(controller: HtmlCrudController): Server = apply {
+        require(!running.get()) { "Controllers must be registered before the server starts" }
+        val path = controller.path.normalizedControllerPath()
+        require(htmlControllers.none { it.path.normalizedControllerPath() == path }) {
+            "An HTML controller is already registered for $path"
+        }
+        htmlControllers += controller
     }
 
     fun start() {
@@ -103,17 +113,23 @@ class Server(port: Int = DEFAULT_PORT) : AutoCloseable {
                 )
                 return
             }
-            val resourcePath = resolveResourcePath(requestParts[1])
-            if (resourcePath == null) {
+            val htmlRoute = findHtmlController(requestPath)
+            if (htmlRoute == null) {
                 connection.sendResponse(RestResponse.notFound())
                 return
             }
-            Server::class.java.getResourceAsStream(PUBLIC_ROOT + resourcePath).use { input ->
+            val pageResource = runBlocking { htmlRoute.resourcePath() }
+                ?.takeIf(String::isValidHtmlResourcePath)
+            if (pageResource == null) {
+                connection.sendResponse(RestResponse.notFound())
+                return
+            }
+            Server::class.java.getResourceAsStream(pageResource).use { input ->
                 if (input == null) {
                     connection.sendResponse(RestResponse.notFound())
                     return
                 }
-                connection.send(200, "OK", contentType(resourcePath), input.readBytes())
+                connection.send(200, "OK", "text/html; charset=utf-8", input.readBytes())
             }
         }
     }
@@ -139,6 +155,18 @@ class Server(port: Int = DEFAULT_PORT) : AutoCloseable {
                     .takeIf { it.isNotEmpty() && '/' !in it }
                     ?.let { ControllerRoute(controller, it) }
 
+                else -> null
+            }
+        }
+
+    private fun findHtmlController(requestPath: String): HtmlControllerRoute? =
+        htmlControllers.firstNotNullOfOrNull { controller ->
+            val path = controller.path.normalizedControllerPath()
+            when (requestPath) {
+                path -> HtmlControllerRoute(controller, HtmlOperation.LISTING)
+                "$path/create" -> HtmlControllerRoute(controller, HtmlOperation.CREATE)
+                "$path/update" -> HtmlControllerRoute(controller, HtmlOperation.UPDATE)
+                "$path/delete" -> HtmlControllerRoute(controller, HtmlOperation.DELETE)
                 else -> null
             }
         }
@@ -189,7 +217,6 @@ class Server(port: Int = DEFAULT_PORT) : AutoCloseable {
     companion object {
         const val DEFAULT_PORT = 8080
         private const val BIND_ADDRESS = "0.0.0.0"
-        private const val PUBLIC_ROOT = "/public/"
         private const val SOCKET_TIMEOUT_MILLIS = 5_000
 
         @JvmStatic
@@ -200,35 +227,28 @@ class Server(port: Int = DEFAULT_PORT) : AutoCloseable {
             server.getNetworkAddresses().forEach { println("Serving at $it") }
         }
 
-        private fun resolveResourcePath(requestTarget: String): String? {
-            val path = runCatching { URI(requestTarget).path }.getOrNull() ?: return null
-            val parts = mutableListOf<String>()
-            for (part in path.split('/')) when (part) {
-                "", "." -> Unit
-                ".." -> return null
-                else -> parts += part
-            }
-            if (path.endsWith('/') || parts.isEmpty()) parts += "index.html"
-            return parts.joinToString("/")
-        }
-
-        private fun contentType(path: String): String {
-            val lowerPath = path.lowercase(Locale.ROOT)
-            return when {
-                lowerPath.endsWith(".html") || lowerPath.endsWith(".htm") -> "text/html; charset=utf-8"
-                lowerPath.endsWith(".css") -> "text/css; charset=utf-8"
-                lowerPath.endsWith(".js") -> "text/javascript; charset=utf-8"
-                lowerPath.endsWith(".json") -> "application/json; charset=utf-8"
-                lowerPath.endsWith(".svg") -> "image/svg+xml"
-                lowerPath.endsWith(".png") -> "image/png"
-                lowerPath.endsWith(".jpg") || lowerPath.endsWith(".jpeg") -> "image/jpeg"
-                else -> "application/octet-stream"
-            }
-        }
     }
 }
 
 private data class ControllerRoute(val controller: RestController, val id: String?)
+
+private data class HtmlControllerRoute(
+    val controller: HtmlCrudController,
+    val operation: HtmlOperation,
+) {
+    suspend fun resourcePath(): String? = when (operation) {
+        HtmlOperation.LISTING -> controller.listing()
+        HtmlOperation.CREATE -> controller.create()
+        HtmlOperation.UPDATE -> controller.update()
+        HtmlOperation.DELETE -> controller.delete()
+    }
+}
+
+private enum class HtmlOperation { LISTING, CREATE, UPDATE, DELETE }
+
+private fun String.isValidHtmlResourcePath(): Boolean =
+    startsWith('/') && endsWith(".html", ignoreCase = true) &&
+        split('/').none { it == ".." || it == "." }
 
 private fun BufferedInputStream.readHttpLine(): String? {
     val bytes = mutableListOf<Byte>()

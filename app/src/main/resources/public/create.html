@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en"><head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Create note · LocalNotes</title>
+    <style>
+        :root { color-scheme: light dark; font-family: system-ui,sans-serif; background:#f5f2e9; color:#191919 }
+        * { box-sizing:border-box } body { max-width:52rem; margin:auto; padding:3rem 1.25rem }
+        h1 { margin:0 0 .25rem } h2 { margin-top:0 } .muted { margin:0; color:#626262 }
+        .page-header { display:flex; justify-content:space-between; align-items:center; gap:1rem; margin-bottom:2rem }
+        .notes { display:grid; gap:1rem } article,.panel { padding:1.25rem; border:2px solid; border-radius:.75rem; background:#fff; box-shadow:4px 4px #191919 }
+        article h2 { margin:0 0 .5rem } article p { margin:0; white-space:pre-wrap; overflow-wrap:anywhere } article time { display:block; margin-top:1rem; color:#626262; font-size:.875rem }
+        .actions { display:flex; justify-content:flex-end; gap:.75rem; margin-top:1.25rem } .empty-state { padding:2rem; text-align:center; border:2px dashed; border-radius:.75rem }
+        label { display:grid; gap:.4rem; margin-bottom:1rem; font-weight:650 } input,textarea,button,.button { font:inherit }
+        input,textarea { width:100%; padding:.75rem; color:inherit; background:transparent; border:2px solid; border-radius:.5rem } textarea { min-height:14rem; resize:vertical }
+        button,.button { display:inline-block; padding:.6rem .9rem; color:inherit; background:transparent; border:2px solid; border-radius:.5rem; font-weight:650; text-decoration:none; cursor:pointer }
+        button:disabled { cursor:wait; opacity:.6 } .primary { color:#fff; background:#3155d9; border-color:#3155d9 } .danger { color:#fff; background:#b42318; border-color:#b42318 } .error { color:#b42318; font-weight:650 }
+        dialog { max-width:28rem; color:inherit; background:#fff; border:2px solid; border-radius:.75rem; box-shadow:6px 6px #191919 } dialog::backdrop { background:rgb(0 0 0/.55) }
+        @media(prefers-color-scheme:dark) { :root { background:#171717; color:#f5f2e9 } article,.panel,dialog { background:#242424; box-shadow:4px 4px #f5f2e9 } .muted,article time { color:#b9b9b9 } .error { color:#ff9b91 } }
+    </style>
+</head><body>
+<header class="page-header"><div><h1>Create note</h1><p class="muted">Add a note to LocalNotes.</p></div><a class="button" href="/notes">Cancel</a></header>
+<main class="panel"><form id="note-form">
+    <label>Title <input id="title" name="title" maxlength="200" autofocus></label>
+    <label>Content <textarea id="content" name="content"></textarea></label>
+    <p id="form-error" class="error" role="alert" hidden></p>
+    <div class="actions"><button id="save" class="primary" type="submit">Create note</button></div>
+</form></main>
+<script>
+const form = document.querySelector('#note-form');
+const saveButton = document.querySelector('#save');
+const errorElement = document.querySelector('#form-error');
+form.addEventListener('submit', async event => {
+    event.preventDefault();
+    saveButton.disabled = true;
+    errorElement.hidden = true;
+    try {
+        const response = await fetch('/api/notes', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                title: document.querySelector('#title').value.trim() || 'Untitled',
+                content: document.querySelector('#content').value.trim(),
+            }),
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        window.location.href = '/notes';
+    } catch (_) {
+        errorElement.textContent = 'Unable to create the note. Please try again.';
+        errorElement.hidden = false;
+        saveButton.disabled = false;
+    }
+});
+</script></body></html>

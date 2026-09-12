@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en"><head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>LocalNotes</title>
+    <style>
+        :root { color-scheme: light dark; font-family: system-ui,sans-serif; background:#f5f2e9; color:#191919 }
+        * { box-sizing:border-box } body { max-width:52rem; margin:auto; padding:3rem 1.25rem }
+        h1 { margin:0 0 .25rem } h2 { margin-top:0 } .muted { margin:0; color:#626262 }
+        .page-header { display:flex; justify-content:space-between; align-items:center; gap:1rem; margin-bottom:2rem }
+        .notes { display:grid; gap:1rem } article,.panel { padding:1.25rem; border:2px solid; border-radius:.75rem; background:#fff; box-shadow:4px 4px #191919 }
+        article h2 { margin:0 0 .5rem } article p { margin:0; white-space:pre-wrap; overflow-wrap:anywhere } article time { display:block; margin-top:1rem; color:#626262; font-size:.875rem }
+        .actions { display:flex; justify-content:flex-end; gap:.75rem; margin-top:1.25rem } .empty-state { padding:2rem; text-align:center; border:2px dashed; border-radius:.75rem }
+        label { display:grid; gap:.4rem; margin-bottom:1rem; font-weight:650 } input,textarea,button,.button { font:inherit }
+        input,textarea { width:100%; padding:.75rem; color:inherit; background:transparent; border:2px solid; border-radius:.5rem } textarea { min-height:14rem; resize:vertical }
+        button,.button { display:inline-block; padding:.6rem .9rem; color:inherit; background:transparent; border:2px solid; border-radius:.5rem; font-weight:650; text-decoration:none; cursor:pointer }
+        button:disabled { cursor:wait; opacity:.6 } .primary { color:#fff; background:#3155d9; border-color:#3155d9 } .danger { color:#fff; background:#b42318; border-color:#b42318 } .error { color:#b42318; font-weight:650 }
+        dialog { max-width:28rem; color:inherit; background:#fff; border:2px solid; border-radius:.75rem; box-shadow:6px 6px #191919 } dialog::backdrop { background:rgb(0 0 0/.55) }
+        @media(prefers-color-scheme:dark) { :root { background:#171717; color:#f5f2e9 } article,.panel,dialog { background:#242424; box-shadow:4px 4px #f5f2e9 } .muted,article time { color:#b9b9b9 } .error { color:#ff9b91 } }
+    </style>
+</head><body>
+<header class="page-header"><div><h1>LocalNotes</h1><p id="summary" class="muted">Loading notes…</p></div><a class="button primary" href="/notes/create">New note</a></header>
+<main id="notes" class="notes" aria-live="polite"></main>
+<dialog id="delete-dialog" aria-labelledby="delete-title"><form method="dialog">
+    <h2 id="delete-title">Delete note?</h2><p>This action cannot be undone.</p>
+    <p id="delete-error" class="error" role="alert" hidden></p>
+    <div class="actions"><button value="cancel">Cancel</button><button id="confirm-delete" class="danger" value="confirm">Delete</button></div>
+</form></dialog>
+<script>
+const notesElement = document.querySelector('#notes');
+const summaryElement = document.querySelector('#summary');
+const deleteDialog = document.querySelector('#delete-dialog');
+const deleteError = document.querySelector('#delete-error');
+const confirmDeleteButton = document.querySelector('#confirm-delete');
+let noteToDelete = null;
+
+function renderNote(note) {
+    const article = document.createElement('article');
+    const title = document.createElement('h2');
+    const content = document.createElement('p');
+    const modified = document.createElement('time');
+    const actions = document.createElement('div');
+    const editLink = document.createElement('a');
+    const deleteButton = document.createElement('button');
+    title.textContent = note.title || 'Untitled';
+    content.textContent = note.content;
+    modified.dateTime = new Date(note.dateModified).toISOString();
+    modified.textContent = `Updated ${new Date(note.dateModified).toLocaleString()}`;
+    actions.className = 'actions';
+    editLink.className = 'button';
+    editLink.href = `/notes/update?id=${encodeURIComponent(note.id)}`;
+    editLink.textContent = 'Edit';
+    deleteButton.className = 'danger';
+    deleteButton.type = 'button';
+    deleteButton.textContent = 'Delete';
+    deleteButton.addEventListener('click', () => {
+        noteToDelete = note;
+        deleteError.hidden = true;
+        document.querySelector('#delete-title').textContent = `Delete “${note.title || 'Untitled'}”?`;
+        deleteDialog.showModal();
+    });
+    actions.append(editLink, deleteButton);
+    article.append(title, content, modified, actions);
+    return article;
+}
+
+function renderNotes(notes) {
+    summaryElement.textContent = notes.length === 1 ? '1 note' : `${notes.length} notes`;
+    if (!notes.length) {
+        const empty = document.createElement('p');
+        empty.className = 'empty-state';
+        empty.textContent = 'No notes yet. Create your first note.';
+        notesElement.replaceChildren(empty);
+        return;
+    }
+    notesElement.replaceChildren(...notes.map(renderNote));
+}
+
+async function loadNotes() {
+    try {
+        const response = await fetch('/api/notes');
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        renderNotes(await response.json());
+    } catch (_) {
+        summaryElement.textContent = 'Unable to load notes';
+        notesElement.textContent = 'Make sure LocalNotes is running, then refresh this page.';
+    }
+}
+
+deleteDialog.addEventListener('close', async () => {
+    if (deleteDialog.returnValue !== 'confirm' || !noteToDelete) return;
+    confirmDeleteButton.disabled = true;
+    try {
+        const response = await fetch(`/api/notes/${encodeURIComponent(noteToDelete.id)}`, { method: 'DELETE' });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        noteToDelete = null;
+        await loadNotes();
+    } catch (_) {
+        deleteError.textContent = 'Unable to delete this note. Please try again.';
+        deleteError.hidden = false;
+        deleteDialog.showModal();
+    } finally {
+        confirmDeleteButton.disabled = false;
+    }
+});
+loadNotes();
+</script></body></html>

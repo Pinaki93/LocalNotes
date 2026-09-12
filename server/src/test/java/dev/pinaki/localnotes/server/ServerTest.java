@@ -18,7 +18,7 @@ public class ServerTest {
 
     @Before
     public void setUp() throws Exception {
-        server = new Server(0);
+        server = new Server(0).registerController(new TestHtmlController());
         server.start();
         client = HttpClient.newHttpClient();
     }
@@ -29,20 +29,39 @@ public class ServerTest {
     }
 
     @Test
-    public void rootServesIndexHtml() throws Exception {
-        HttpResponse<String> response = sendGet("/");
+    public void listingRouteServesIndexHtml() throws Exception {
+        HttpResponse<String> response = sendGet("/notes");
 
         assertEquals(200, response.statusCode());
         assertEquals("text/html; charset=utf-8", response.headers().firstValue("Content-Type").orElse(""));
-        assertTrue(response.body().contains("LocalNotes"));
+        assertTrue(response.body().contains("Test listing"));
+        assertTrue(response.body().contains("New note"));
+        assertTrue(response.body().contains("delete-dialog"));
+        assertEquals(404, sendGet("/").statusCode());
     }
 
     @Test
-    public void unknownFileReturnsNotFound() throws Exception {
-        HttpResponse<String> response = sendGet("/missing.html");
+    public void servesCreateAndUpdatePages() throws Exception {
+        HttpResponse<String> createResponse = sendGet("/notes/create");
+        HttpResponse<String> updateResponse = sendGet("/notes/update?id=1");
 
-        assertEquals(404, response.statusCode());
-        assertEquals("Not found", response.body());
+        assertEquals(200, createResponse.statusCode());
+        assertTrue(createResponse.body().contains("Create note"));
+        assertEquals(200, updateResponse.statusCode());
+        assertTrue(updateResponse.body().contains("Edit note"));
+        assertEquals(404, sendGet("/notes/delete").statusCode());
+        assertEquals(404, sendGet("/create.html").statusCode());
+        assertEquals(404, sendGet("/update.html?id=1").statusCode());
+    }
+
+    @Test
+    public void filesAreNotServed() throws Exception {
+        HttpResponse<String> missingResponse = sendGet("/missing.html");
+        HttpResponse<String> formerAssetResponse = sendGet("/styles.css");
+
+        assertEquals(404, missingResponse.statusCode());
+        assertEquals("Not found", missingResponse.body());
+        assertEquals(404, formerAssetResponse.statusCode());
     }
 
     @Test
@@ -57,5 +76,21 @@ public class ServerTest {
                 URI.create("http://localhost:" + server.getPort() + path)
         ).GET().build();
         return client.send(request, HttpResponse.BodyHandlers.ofString());
+    }
+
+    private static class TestHtmlController implements HtmlCrudController {
+        @Override public String getPath() { return "/notes"; }
+        @Override public Object listing(kotlin.coroutines.Continuation<? super String> continuation) {
+            return "/pages/listing.html";
+        }
+        @Override public Object create(kotlin.coroutines.Continuation<? super String> continuation) {
+            return "/pages/create.html";
+        }
+        @Override public Object update(kotlin.coroutines.Continuation<? super String> continuation) {
+            return "/pages/update.html";
+        }
+        @Override public Object delete(kotlin.coroutines.Continuation<? super String> continuation) {
+            return null;
+        }
     }
 }

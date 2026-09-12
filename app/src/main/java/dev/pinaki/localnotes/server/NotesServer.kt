@@ -4,12 +4,14 @@ import android.util.Log
 
 class NotesServer(
     private val server: Server,
-    private val notesController: NotesController
+    private val restControllers: List<RestController>,
+    private val htmlCrudControllers: List<HtmlCrudController>,
 ) {
     fun startSilently() {
         runCatching {
             with(server) {
-                registerController(notesController)
+                restControllers.forEach(::registerController)
+                htmlCrudControllers.forEach(::registerController)
                 start()
                 getNetworkAddresses().forEach { address ->
                     Log.i(TAG, "LocalNotes server: $address")

@@ -6,6 +6,7 @@ import dev.pinaki.localnotes.data.NotesRepository
 import dev.pinaki.localnotes.navigation.Navigator
 import dev.pinaki.localnotes.navigation.NavigatorImpl
 import dev.pinaki.localnotes.server.NotesController
+import dev.pinaki.localnotes.server.NotesHtmlController
 import dev.pinaki.localnotes.server.NotesServer
 import dev.pinaki.localnotes.server.Server
 import kotlinx.serialization.json.Json
@@ -42,7 +43,8 @@ internal object AppContainerImpl : AppContainer {
     override val notesServer: NotesServer by lazy {
         NotesServer(
             Server(),
-            NotesController(this)
+            restControllers = listOf(NotesController(this)),
+            htmlCrudControllers = listOf(NotesHtmlController()),
         )
     }
 }

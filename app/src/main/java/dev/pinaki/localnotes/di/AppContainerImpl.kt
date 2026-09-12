@@ -10,6 +10,7 @@ import dev.pinaki.localnotes.server.NotesController
 import dev.pinaki.localnotes.server.NotesHtmlController
 import dev.pinaki.localnotes.server.NotesServer
 import dev.pinaki.localnotes.server.Server
+import dev.pinaki.localnotes.server.PasswordAuthenticator
 import kotlinx.serialization.json.Json
 
 internal object AppContainerImpl : AppContainer {
@@ -44,7 +45,9 @@ internal object AppContainerImpl : AppContainer {
     override val notesServer: NotesServer by lazy {
         NotesServer(
             context = checkNotNull(applicationContext),
-            serverFactory = ::Server,
+            serverFactory = {
+                Server(passwordAuthenticator = PasswordAuthenticator(serverStateRepository::verifyPassword))
+            },
             restControllers = listOf(NotesController(this)),
             htmlCrudControllers = listOf(NotesHtmlController()),
         )

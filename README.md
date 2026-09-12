@@ -63,7 +63,7 @@ The main notes screen lists notes stored on the device. Create a note from the a
 Stop the server from the app or from the notification action. If the device reboots while the server is enabled, LocalNotes attempts to restore it after boot.
 
 > [!WARNING]
-> The web server binds to all network interfaces and currently has no authentication, authorization, or TLS. Anyone who can reach port 8080 can read and change the notes. Only enable it on a trusted local network; do not expose it to the public internet or configure router port forwarding for it.
+> The web server binds to all network interfaces and uses password authentication, but it does not provide TLS. Only enable it on a trusted local network; do not expose it to the public internet or configure router port forwarding for it.
 
 If another application already uses port 8080, the server cannot start. Local firewall rules, guest Wi-Fi isolation, VPNs, and emulator networking may also prevent another device from reaching the displayed address.
 
@@ -75,18 +75,21 @@ Example requests, with the phone address adjusted for your network:
 
 ```shell
 LOCAL_NOTES_URL=http://192.168.1.20:8080
+read -s LOCAL_NOTES_PASSWORD
+curl --cookie-jar localnotes.cookies \
+  --data-urlencode "password=$LOCAL_NOTES_PASSWORD" "$LOCAL_NOTES_URL/login"
 
-curl "$LOCAL_NOTES_URL/api/notes"
+curl --cookie localnotes.cookies "$LOCAL_NOTES_URL/api/notes"
 
-curl -X POST "$LOCAL_NOTES_URL/api/notes" \
+curl --cookie localnotes.cookies -X POST "$LOCAL_NOTES_URL/api/notes" \
   -H 'Content-Type: application/json' \
   -d '{"title":"From curl","content":"Stored on the Android device"}'
 
-curl -X PUT "$LOCAL_NOTES_URL/api/notes/1" \
+curl --cookie localnotes.cookies -X PUT "$LOCAL_NOTES_URL/api/notes/1" \
   -H 'Content-Type: application/json' \
   -d '{"title":"Updated","content":"New content"}'
 
-curl -X DELETE "$LOCAL_NOTES_URL/api/notes/1"
+curl --cookie localnotes.cookies -X DELETE "$LOCAL_NOTES_URL/api/notes/1"
 ```
 
 ## Architecture

@@ -11,7 +11,9 @@ class ServerBootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (
             intent.action == Intent.ACTION_BOOT_COMPLETED &&
-            AppContainer.getInstance().serverStateRepository.isEnabled()
+            AppContainer.getInstance().serverStateRepository.let {
+                it.isEnabled() && it.hasPassword()
+            }
         ) {
             ContextCompat.startForegroundService(
                 context,

@@ -8,14 +8,20 @@ import java.net.ServerSocket
 import java.net.Socket
 import java.net.SocketTimeoutException
 import java.net.URI
+import java.net.URLDecoder
+import java.security.SecureRandom
 import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.runBlocking
 
 /** Serves registered REST and HTML CRUD controllers. */
-class Server(port: Int = DEFAULT_PORT) : AutoCloseable {
+class Server @JvmOverloads constructor(
+    port: Int = DEFAULT_PORT,
+    private val passwordAuthenticator: PasswordAuthenticator? = null,
+) : AutoCloseable {
     private val serverSocket = ServerSocket().apply {
         reuseAddress = true
         bind(InetSocketAddress(BIND_ADDRESS, port))
@@ -24,6 +30,8 @@ class Server(port: Int = DEFAULT_PORT) : AutoCloseable {
     private val running = AtomicBoolean(false)
     private val controllers = CopyOnWriteArrayList<RestController>()
     private val htmlControllers = CopyOnWriteArrayList<HtmlCrudController>()
+    private val sessions = ConcurrentHashMap<String, Long>()
+    private val secureRandom = SecureRandom()
 
     fun registerController(controller: RestController): Server = apply {
         require(!running.get()) { "Controllers must be registered before the server starts" }
@@ -100,6 +108,27 @@ class Server(port: Int = DEFAULT_PORT) : AutoCloseable {
                 connection.sendResponse(RestResponse.notFound())
                 return
             }
+            if (passwordAuthenticator != null) {
+                if (requestPath == LOGIN_PATH) {
+                    handleLogin(connection, requestParts[0], headers, input)
+                    return
+                }
+                if (!isAuthenticated(headers)) {
+                    connection.sendResponse(
+                        if (requestPath.startsWith("/api/")) RestResponse(
+                            401,
+                            "Unauthorized",
+                            "Authentication required",
+                            "text/plain; charset=utf-8",
+                        ) else RestResponse(
+                            303,
+                            "See Other",
+                            headers = mapOf("Location" to LOGIN_PATH),
+                        ),
+                    )
+                    return
+                }
+            }
             val route = findController(requestPath)
             if (route != null) {
                 val body = input.readUpTo(
@@ -136,6 +165,122 @@ class Server(port: Int = DEFAULT_PORT) : AutoCloseable {
             }
         }
     }
+
+    private fun handleLogin(
+        connection: Socket,
+        method: String,
+        headers: Map<String, String>,
+        input: BufferedInputStream,
+    ) {
+        when (method) {
+            "GET" -> connection.sendResponse(loginPage())
+            "POST" -> {
+                val body = input.readUpTo(
+                    (headers["content-length"]?.toIntOrNull() ?: 0).coerceIn(0, MAX_LOGIN_BODY_BYTES),
+                ).toString(Charsets.UTF_8)
+                val password = body.split('&').firstNotNullOfOrNull { field ->
+                    val parts = field.split('=', limit = 2)
+                    if (parts.firstOrNull() == "password") {
+                        URLDecoder.decode(parts.getOrElse(1) { "" }, Charsets.UTF_8.name())
+                    } else null
+                }.orEmpty()
+                if (passwordAuthenticator?.authenticate(password) == true) {
+                    val tokenBytes = ByteArray(32).also(secureRandom::nextBytes)
+                    val token = tokenBytes.joinToString("") { "%02x".format(it) }
+                    sessions[token] = System.currentTimeMillis() + SESSION_LIFETIME_MILLIS
+                    connection.sendResponse(
+                        RestResponse(
+                            303,
+                            "See Other",
+                            headers = mapOf(
+                                "Location" to "/",
+                                "Set-Cookie" to "$SESSION_COOKIE=$token; Path=/; HttpOnly; SameSite=Strict",
+                            ),
+                        ),
+                    )
+                } else {
+                    connection.sendResponse(loginPage(invalid = true))
+                }
+            }
+            else -> connection.sendResponse(
+                RestResponse.methodNotAllowed().copy(headers = mapOf("Allow" to "GET, POST")),
+            )
+        }
+    }
+
+    private fun isAuthenticated(headers: Map<String, String>): Boolean {
+        val token = headers["cookie"]?.split(';')?.firstNotNullOfOrNull { cookie ->
+            val parts = cookie.trim().split('=', limit = 2)
+            parts.getOrNull(1)?.takeIf { parts[0] == SESSION_COOKIE }
+        } ?: return false
+        val expiresAt = sessions[token] ?: return false
+        if (expiresAt <= System.currentTimeMillis()) {
+            sessions.remove(token)
+            return false
+        }
+        return true
+    }
+
+    private fun loginPage(invalid: Boolean = false) = RestResponse(
+        if (invalid) 401 else 200,
+        if (invalid) "Unauthorized" else "OK",
+        """<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="theme-color" content="#ffe34f">
+    <title>Sign in · LocalNotes</title>
+    <style>
+        :root { font-family:Inter,ui-sans-serif,system-ui,-apple-system,sans-serif; color:#171717; background:#fffaf0 }
+        * { box-sizing:border-box }
+        body { min-height:100vh; margin:0; display:grid; grid-template-rows:auto 1fr; background-image:radial-gradient(#171717 1px,transparent 1px); background-size:22px 22px }
+        .topbar { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:1.15rem clamp(1rem,5vw,3rem); background:#ffe34f; border-bottom:3px solid #171717 }
+        .brand { display:flex; align-items:center; gap:.75rem; font-family:Georgia,serif; font-size:clamp(1.25rem,4vw,1.6rem); font-weight:900; letter-spacing:-.03em }
+        .logo { display:grid; place-items:center; width:2.35rem; height:2.35rem; background:#fff; border:2px solid #171717; box-shadow:3px 3px #171717 }
+        .local { padding:.38rem .65rem; font-size:.72rem; font-weight:900; letter-spacing:.1em; text-transform:uppercase; background:#7ce7a7; border:2px solid #171717 }
+        main { width:min(100% - 2rem,29rem); margin:auto; padding:3rem 0 }
+        .eyebrow { display:inline-block; margin:0 0 .85rem; padding:.35rem .65rem; background:#7ce7a7; border:2px solid #171717; font-size:.75rem; font-weight:900; letter-spacing:.12em }
+        .card { position:relative; padding:clamp(1.35rem,5vw,2rem); background:#79cef2; border:3px solid #171717; box-shadow:8px 8px #171717 }
+        h1 { margin:0; font-family:Georgia,serif; font-size:clamp(2rem,9vw,3rem); line-height:.95; letter-spacing:-.045em }
+        .intro { margin:.9rem 0 1.65rem; line-height:1.55; font-weight:600 }
+        label { display:grid; gap:.55rem; font-family:Georgia,serif; font-size:.88rem; font-weight:900; letter-spacing:.06em; text-transform:uppercase }
+        input { width:100%; min-height:3.4rem; padding:.8rem 1rem; color:#171717; background:#fff; border:3px solid #171717; border-radius:0; outline:none; font:inherit; font-size:1rem; font-weight:600; box-shadow:4px 4px #171717; transition:transform .12s,box-shadow .12s }
+        input:focus { transform:translate(2px,2px); box-shadow:2px 2px #171717 }
+        button { width:100%; min-height:3.5rem; margin-top:1.35rem; padding:.8rem 1rem; color:#171717; background:#ffe34f; border:3px solid #171717; border-radius:0; box-shadow:5px 5px #171717; font:900 1rem Georgia,serif; letter-spacing:.04em; text-transform:uppercase; cursor:pointer; transition:transform .12s,box-shadow .12s }
+        button:hover { background:#ffed86 }
+        button:active { transform:translate(4px,4px); box-shadow:1px 1px #171717 }
+        .error { margin:0 0 1.15rem; padding:.75rem .85rem; background:#ff8f88; border:2px solid #171717; font-weight:800 }
+        .hint { display:flex; align-items:flex-start; gap:.6rem; margin:1.35rem 0 0; font-size:.8rem; font-weight:650; line-height:1.4 }
+        .dot { flex:0 0 auto; width:.65rem; height:.65rem; margin-top:.2rem; background:#7ce7a7; border:2px solid #171717; border-radius:50% }
+        @media(max-width:360px) { .local { display:none } .card { box-shadow:6px 6px #171717 } }
+        @media(prefers-reduced-motion:reduce) { input,button { transition:none } }
+    </style>
+</head>
+<body>
+    <header class="topbar">
+        <div class="brand"><span class="logo">N</span><span>LocalNotes</span></div>
+        <span class="local">Local network</span>
+    </header>
+    <main>
+        <section class="card" aria-labelledby="login-title">
+            <p class="eyebrow">PRIVATE ACCESS</p>
+            <h1 id="login-title">Welcome back.</h1>
+            <p class="intro">Enter the password set in the LocalNotes app to open your notes.</p>
+            ${if (invalid) "<p class=\"error\" role=\"alert\">That password is incorrect. Try again.</p>" else ""}
+            <form method="post" action="/login">
+                <label for="password">Web password</label>
+                <input id="password" name="password" type="password" required autofocus autocomplete="current-password">
+                <button type="submit">Open my notes →</button>
+            </form>
+            <p class="hint"><span class="dot" aria-hidden="true"></span><span>Only a one-way password verifier is saved on Android. Connect only from a network you trust.</span></p>
+        </section>
+    </main>
+</body>
+</html>""",
+        "text/html; charset=utf-8",
+        mapOf("Cache-Control" to "no-store"),
+    )
 
     private fun readHeaders(input: BufferedInputStream): Map<String, String> = buildMap {
         while (true) {
@@ -223,6 +368,10 @@ class Server(port: Int = DEFAULT_PORT) : AutoCloseable {
         const val DEFAULT_PORT = 8080
         private const val BIND_ADDRESS = "0.0.0.0"
         private const val SOCKET_TIMEOUT_MILLIS = 5_000
+        private const val LOGIN_PATH = "/login"
+        private const val SESSION_COOKIE = "localnotes_session"
+        private const val SESSION_LIFETIME_MILLIS = 12 * 60 * 60 * 1_000L
+        private const val MAX_LOGIN_BODY_BYTES = 8 * 1024
 
         @JvmStatic
         fun main(args: Array<String>) {
@@ -233,6 +382,10 @@ class Server(port: Int = DEFAULT_PORT) : AutoCloseable {
         }
 
     }
+}
+
+fun interface PasswordAuthenticator {
+    fun authenticate(password: String): Boolean
 }
 
 private data class ControllerRoute(val controller: RestController, val id: String?)

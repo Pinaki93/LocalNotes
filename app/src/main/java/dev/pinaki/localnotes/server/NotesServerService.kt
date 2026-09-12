@@ -36,6 +36,12 @@ class NotesServerService : Service() {
             return START_NOT_STICKY
         }
 
+        if (!serverStateRepository.hasPassword()) {
+            setEnabled(false)
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
         setEnabled(true)
         ServiceCompat.startForeground(
             this,

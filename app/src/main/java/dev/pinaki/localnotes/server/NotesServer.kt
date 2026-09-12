@@ -57,8 +57,6 @@ class NotesServer(
                 newServer.close()
                 throw error
             }
-        }.onFailure { error ->
-            Log.e(TAG, "Unable to start the LocalNotes server", error)
         }
     }
 

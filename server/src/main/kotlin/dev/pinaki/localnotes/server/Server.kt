@@ -102,7 +102,7 @@ class Server(port: Int = DEFAULT_PORT) : AutoCloseable {
             }
             val route = findController(requestPath)
             if (route != null) {
-                val body = input.readNBytes(
+                val body = input.readUpTo(
                     (headers["content-length"]?.toIntOrNull() ?: 0).coerceAtLeast(0)
                 )
                     .toString(Charsets.UTF_8)
@@ -267,6 +267,17 @@ private fun BufferedInputStream.readHttpLine(): String? {
         }
         bytes += value.toByte()
     }
+}
+
+private fun BufferedInputStream.readUpTo(byteCount: Int): ByteArray {
+    val bytes = ByteArray(byteCount)
+    var offset = 0
+    while (offset < byteCount) {
+        val count = read(bytes, offset, byteCount - offset)
+        if (count < 0) break
+        offset += count
+    }
+    return if (offset == byteCount) bytes else bytes.copyOf(offset)
 }
 
 private fun String.normalizedControllerPath(): String {

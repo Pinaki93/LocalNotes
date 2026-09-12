@@ -84,7 +84,7 @@ class NotesServerService : Service() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_notification_server)
             .setContentTitle(getString(R.string.server_notification_title))
             .setContentText(content)
             .setContentIntent(openApp)

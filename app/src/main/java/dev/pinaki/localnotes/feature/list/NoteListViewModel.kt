@@ -21,7 +21,7 @@ class NoteListViewModel(
             actions = listOf(
                 ToolbarAction(
                     id = TOOLBAR_ACTION_TRY_BROWSER,
-                    text = "[B]",
+                    text = "[\uD83C\uDF10]",
                     contentDescription = "Try on browser",
                 ),
                 ToolbarAction(

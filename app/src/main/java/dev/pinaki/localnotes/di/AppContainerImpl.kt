@@ -5,6 +5,10 @@ import dev.pinaki.localnotes.data.NotesDatabase
 import dev.pinaki.localnotes.data.NotesRepository
 import dev.pinaki.localnotes.navigation.Navigator
 import dev.pinaki.localnotes.navigation.NavigatorImpl
+import dev.pinaki.localnotes.server.NotesController
+import dev.pinaki.localnotes.server.NotesServer
+import dev.pinaki.localnotes.server.Server
+import kotlinx.serialization.json.Json
 
 internal object AppContainerImpl : AppContainer {
     @Volatile
@@ -31,5 +35,14 @@ internal object AppContainerImpl : AppContainer {
 
     override val navigator: Navigator by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         NavigatorImpl()
+    }
+
+    override val json: Lazy<Json> = lazy { Json { ignoreUnknownKeys = true } }
+
+    override val notesServer: NotesServer by lazy {
+        NotesServer(
+            Server(),
+            NotesController(this)
+        )
     }
 }

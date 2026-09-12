@@ -1,36 +1,26 @@
 package dev.pinaki.localnotes
 
 import android.app.Application
-import android.util.Log
-import dev.pinaki.localnotes.server.StaticFileServer
+import dev.pinaki.localnotes.di.AppContainer
+import dev.pinaki.localnotes.server.Server
 
 class LocalNotesApplication : Application() {
-    private var staticFileServer: StaticFileServer? = null
+    private var server: Server? = null
 
     override fun onCreate() {
         super.onCreate()
         instance = this
-        startStaticFileServer()
+        startServer()
     }
 
     override fun onTerminate() {
-        staticFileServer?.close()
-        staticFileServer = null
+        server?.close()
+        server = null
         super.onTerminate()
     }
 
-    private fun startStaticFileServer() {
-        runCatching {
-            StaticFileServer(StaticFileServer.DEFAULT_PORT).also {
-                it.start()
-                staticFileServer = it
-                it.getNetworkAddresses().forEach { address ->
-                    Log.i(TAG, "Static file server: $address")
-                }
-            }
-        }.onFailure { error ->
-            Log.e(TAG, "Unable to start the static file server", error)
-        }
+    private fun startServer() {
+        AppContainer.getInstance().notesServer.startSilently()
     }
 
     companion object {

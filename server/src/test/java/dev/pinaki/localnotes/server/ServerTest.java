@@ -12,13 +12,13 @@ import java.net.http.HttpResponse;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-public class StaticFileServerTest {
-    private StaticFileServer server;
+public class ServerTest {
+    private Server server;
     private HttpClient client;
 
     @Before
     public void setUp() throws Exception {
-        server = new StaticFileServer(0);
+        server = new Server(0);
         server.start();
         client = HttpClient.newHttpClient();
     }
@@ -43,6 +43,13 @@ public class StaticFileServerTest {
 
         assertEquals(404, response.statusCode());
         assertEquals("Not found", response.body());
+    }
+
+    @Test
+    public void unregisteredApiReturnsNotFound() throws Exception {
+        HttpResponse<String> response = sendGet("/api/notes");
+
+        assertEquals(404, response.statusCode());
     }
 
     private HttpResponse<String> sendGet(String path) throws Exception {

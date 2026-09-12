@@ -5,7 +5,7 @@ plugins {
 }
 
 application {
-    mainClass = "dev.pinaki.localnotes.server.StaticFileServer"
+    mainClass = "dev.pinaki.localnotes.server.Server"
 }
 
 java {

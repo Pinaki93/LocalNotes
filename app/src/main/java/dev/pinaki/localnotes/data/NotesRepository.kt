@@ -4,7 +4,7 @@ import java.util.Date
 import kotlinx.coroutines.flow.Flow
 
 class NotesRepository(database: NotesDatabase) {
-    private val noteDao = database.noteDao()
+    private val noteDao by lazy { database.noteDao() }
 
     fun observeAllNotes(): Flow<List<Note>> = noteDao.observeAll()
 

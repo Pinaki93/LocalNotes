@@ -8,7 +8,7 @@
         h1 { margin:0 0 .25rem } h2 { margin-top:0 } .muted { margin:0; color:#626262 }
         .page-header { display:flex; justify-content:space-between; align-items:center; gap:1rem; margin-bottom:2rem }
         .notes { display:grid; gap:1rem } article,.panel { padding:1.25rem; border:2px solid; border-radius:.75rem; background:#fff; box-shadow:4px 4px #191919 }
-        article h2 { margin:0 0 .5rem } article p { margin:0; white-space:pre-wrap; overflow-wrap:anywhere } article time { display:block; margin-top:1rem; color:#626262; font-size:.875rem }
+        article { cursor:pointer } article h2 { margin:0 0 .5rem } article p { margin:0; white-space:pre-wrap; overflow-wrap:anywhere; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:3; line-clamp:3; overflow:hidden } article time { display:block; margin-top:1rem; color:#626262; font-size:.875rem }
         .actions { display:flex; justify-content:flex-end; gap:.75rem; margin-top:1.25rem } .empty-state { padding:2rem; text-align:center; border:2px dashed; border-radius:.75rem }
         label { display:grid; gap:.4rem; margin-bottom:1rem; font-weight:650 } input,textarea,button,.button { font:inherit }
         input,textarea { width:100%; padding:.75rem; color:inherit; background:transparent; border:2px solid; border-radius:.5rem } textarea { min-height:14rem; resize:vertical }
@@ -41,13 +41,14 @@ function renderNote(note) {
     const actions = document.createElement('div');
     const editLink = document.createElement('a');
     const deleteButton = document.createElement('button');
+    const editUrl = `/notes/update?id=${encodeURIComponent(note.id)}`;
     title.textContent = note.title || 'Untitled';
     content.textContent = note.content;
     modified.dateTime = new Date(note.dateModified).toISOString();
     modified.textContent = `Updated ${new Date(note.dateModified).toLocaleString()}`;
     actions.className = 'actions';
     editLink.className = 'button';
-    editLink.href = `/notes/update?id=${encodeURIComponent(note.id)}`;
+    editLink.href = editUrl;
     editLink.textContent = 'Edit';
     deleteButton.className = 'danger';
     deleteButton.type = 'button';
@@ -57,6 +58,9 @@ function renderNote(note) {
         deleteError.hidden = true;
         document.querySelector('#delete-title').textContent = `Delete “${note.title || 'Untitled'}”?`;
         deleteDialog.showModal();
+    });
+    article.addEventListener('click', event => {
+        if (!event.target.closest('a, button')) window.location.href = editUrl;
     });
     actions.append(editLink, deleteButton);
     article.append(title, content, modified, actions);

@@ -40,6 +40,9 @@ class Server(port: Int = DEFAULT_PORT) : AutoCloseable {
         require(htmlControllers.none { it.path.normalizedControllerPath() == path }) {
             "An HTML controller is already registered for $path"
         }
+        require(!controller.servesRoot || htmlControllers.none(HtmlCrudController::servesRoot)) {
+            "An HTML controller is already registered for the root path"
+        }
         htmlControllers += controller
     }
 
@@ -162,11 +165,13 @@ class Server(port: Int = DEFAULT_PORT) : AutoCloseable {
     private fun findHtmlController(requestPath: String): HtmlControllerRoute? =
         htmlControllers.firstNotNullOfOrNull { controller ->
             val path = controller.path.normalizedControllerPath()
-            when (requestPath) {
-                path -> HtmlControllerRoute(controller, HtmlOperation.LISTING)
-                "$path/create" -> HtmlControllerRoute(controller, HtmlOperation.CREATE)
-                "$path/update" -> HtmlControllerRoute(controller, HtmlOperation.UPDATE)
-                "$path/delete" -> HtmlControllerRoute(controller, HtmlOperation.DELETE)
+            when {
+                requestPath == "/" && controller.servesRoot ->
+                    HtmlControllerRoute(controller, HtmlOperation.LISTING)
+                requestPath == path -> HtmlControllerRoute(controller, HtmlOperation.LISTING)
+                requestPath == "$path/create" -> HtmlControllerRoute(controller, HtmlOperation.CREATE)
+                requestPath == "$path/update" -> HtmlControllerRoute(controller, HtmlOperation.UPDATE)
+                requestPath == "$path/delete" -> HtmlControllerRoute(controller, HtmlOperation.DELETE)
                 else -> null
             }
         }

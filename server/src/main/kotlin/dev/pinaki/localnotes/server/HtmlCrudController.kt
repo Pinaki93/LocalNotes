@@ -8,6 +8,7 @@ package dev.pinaki.localnotes.server
  */
 interface HtmlCrudController {
     val path: String
+    val servesRoot: Boolean get() = false
 
     suspend fun listing(): String? = null
     suspend fun create(): String? = null

@@ -8,6 +8,7 @@ import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import dev.pinaki.localnotes.feature.addedit.AddEditDestination
 import dev.pinaki.localnotes.feature.list.NoteListDestination
+import dev.pinaki.localnotes.feature.browser.TryOnBrowserDestination
 
 private const val NOTE_LIST_ROUTE = "notes"
 
@@ -23,6 +24,9 @@ fun LocalNotesNavGraph() {
     ) {
         composable(NOTE_LIST_ROUTE) {
             NoteListDestination()
+        }
+        composable("browser") {
+            TryOnBrowserDestination()
         }
         composable(
             route = AddEditDestination.ROUTE,

@@ -20,8 +20,13 @@ class NoteListViewModel(
             showNavigationIcon = false,
             actions = listOf(
                 ToolbarAction(
+                    id = TOOLBAR_ACTION_TRY_BROWSER,
+                    text = "[B]",
+                    contentDescription = "Try on browser",
+                ),
+                ToolbarAction(
                     id = TOOLBAR_ACTION_ADD_NOTE,
-                    text = "+",
+                    text = "[+]",
                     contentDescription = "Add note",
                 )
             ),
@@ -46,6 +51,7 @@ class NoteListViewModel(
 
     override fun onToolbarActionClicked(actionId: String) {
         when (actionId) {
+            TOOLBAR_ACTION_TRY_BROWSER -> appContainer.navigator.navigateAsync("browser")
             TOOLBAR_ACTION_ADD_NOTE -> navigateToEditor()
         }
     }
@@ -56,5 +62,6 @@ class NoteListViewModel(
 
     companion object {
         const val TOOLBAR_ACTION_ADD_NOTE = "toolbar-action-add-note"
+        const val TOOLBAR_ACTION_TRY_BROWSER = "toolbar-action-try-browser"
     }
 }

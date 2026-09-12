@@ -211,7 +211,10 @@ fun CoreScaffold(
                     actions = {
                         Row(modifier = Modifier.padding(end = 8.dp)) {
                             toolbar.actions.forEach { action ->
-                                NeoIconButton(onClick = { onToolbarActionClick(action.id) }) {
+                                NeoIconButton(
+                                    onClick = { onToolbarActionClick(action.id) },
+                                    transparent = true,
+                                ) {
                                     action.icon?.let { icon ->
                                         Icon(
                                             imageVector = icon,

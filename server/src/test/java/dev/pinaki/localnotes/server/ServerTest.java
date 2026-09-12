@@ -37,7 +37,10 @@ public class ServerTest {
         assertTrue(response.body().contains("Test listing"));
         assertTrue(response.body().contains("New note"));
         assertTrue(response.body().contains("delete-dialog"));
-        assertEquals(404, sendGet("/").statusCode());
+
+        HttpResponse<String> rootResponse = sendGet("/");
+        assertEquals(200, rootResponse.statusCode());
+        assertTrue(rootResponse.body().contains("Test listing"));
     }
 
     @Test
@@ -80,6 +83,7 @@ public class ServerTest {
 
     private static class TestHtmlController implements HtmlCrudController {
         @Override public String getPath() { return "/notes"; }
+        @Override public boolean getServesRoot() { return true; }
         @Override public Object listing(kotlin.coroutines.Continuation<? super String> continuation) {
             return "/pages/listing.html";
         }
